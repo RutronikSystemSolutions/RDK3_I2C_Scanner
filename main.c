@@ -92,10 +92,6 @@ int main(void)
     result = cyhal_gpio_init( LED2, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
     if (result != CY_RSLT_SUCCESS)
     {handle_error();}
-    result = cyhal_gpio_init( LED3, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-    if (result != CY_RSLT_SUCCESS)
-    {handle_error();}
-
 
     /*Enable interrupts*/
     __enable_irq();
@@ -121,11 +117,11 @@ int main(void)
     for (;;)
     {
     	printf("\x1b[2J\x1b[;H");
-    	printf("\"RutDevKit-PSoc62 I2C Scanner\" is running.\r\n");
+    	printf("\"RDK3 I2C Scanner\" is running.\r\n");
     	printf("Full scan completed %u times.\r\n", (unsigned int)counter);
     	for(address = 1; address < 127; address++)
     	{
-    		ping = Cy_SCB_I2C_MasterSendStart(I2C_scb3.base, address, CY_SCB_I2C_READ_XFER, I2C_TIMEOUT_MS, &I2C_scb3.context);
+    		ping = Cy_SCB_I2C_MasterSendStart(I2C_scb3.base, address, CY_SCB_I2C_WRITE_XFER, I2C_TIMEOUT_MS, &I2C_scb3.context);
     		Cy_SCB_I2C_MasterSendStop(I2C_scb3.base, I2C_TIMEOUT_MS, &I2C_scb3.context);
     		if(ping == CY_SCB_I2C_SUCCESS)
     		{
@@ -135,17 +131,39 @@ int main(void)
     			/*Device found flag*/
     			dev_online = true;
     		}
+    		/*Check for known protocol specific devices*/
+    		else
+    		{
+    			/*CY8CMBR3xxx controller wake up*/
+    			if(address == 0x37)
+    			{
+    				for(uint8_t i = 0; i < 3; i++)
+    				{
+    		    		ping = Cy_SCB_I2C_MasterSendStart(I2C_scb3.base, address, CY_SCB_I2C_WRITE_XFER, I2C_TIMEOUT_MS, &I2C_scb3.context);
+    		    		Cy_SCB_I2C_MasterSendStop(I2C_scb3.base, I2C_TIMEOUT_MS, &I2C_scb3.context);
+    		    		if(ping == CY_SCB_I2C_SUCCESS)
+    		    		{
+    		    			/*Left shift the address once and print it*/
+    		    			printf("Responsive I2C address 8-bit: 0x%X, 7-bit: 0x%X\r\n", (unsigned int)(address << 1), (unsigned int)address);
+
+    		    			/*Device found flag*/
+    		    			dev_online = true;
+    		    			break;
+    		    		}
+    				}
+    			}
+    		}
     	}
 
     	if(dev_online)
     	{
-    		cyhal_gpio_write(LED2, false);
-    		cyhal_gpio_write(LED3, true);
+    		cyhal_gpio_write(LED1, false);
+    		cyhal_gpio_write(LED2, true);
     	}
     	else
     	{
-    		cyhal_gpio_write(LED2, true);
-    		cyhal_gpio_write(LED3, false);
+    		cyhal_gpio_write(LED1, true);
+    		cyhal_gpio_write(LED2, false);
     	}
     	dev_online = false;
     	CyDelay(1000);
